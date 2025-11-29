@@ -69,6 +69,10 @@ func TestFetchStatus(t *testing.T) {
 	mockStatus := Status{
 		BatteryCharging:    false,
 		BatteryDischarging: false,
+		ConsumptionW:       750.0,
+		GridFeedInW:        -250.0,
+		PacTotalW:          100.0,
+		ProductionW:        500.0,
 		SystemStatus:       "OnGrid",
 		Uac:                229.0,
 		Ubat:               99.0,

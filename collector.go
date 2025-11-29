@@ -22,6 +22,9 @@ type Collector struct {
 	charging           *prometheus.Desc
 	discharging        *prometheus.Desc
 	fullChargeCapacity *prometheus.Desc
+	acVoltage          *prometheus.Desc
+	batteryVoltage     *prometheus.Desc
+	acFrequency        *prometheus.Desc
 	info               *prometheus.Desc
 	scrapeSuccess      *prometheus.Desc
 }
@@ -84,6 +87,24 @@ func NewCollector(batteries []Battery) *Collector {
 			[]string{"battery_name", "bms_state", "inverter_state"},
 			nil,
 		),
+		acVoltage: prometheus.NewDesc(
+			"sonnenbatterie_ac_voltage",
+			"AC voltage in volts",
+			[]string{"battery_name", "bms_state", "inverter_state"},
+			nil,
+		),
+		batteryVoltage: prometheus.NewDesc(
+			"sonnenbatterie_battery_voltage",
+			"Battery voltage in volts",
+			[]string{"battery_name", "bms_state", "inverter_state"},
+			nil,
+		),
+		acFrequency: prometheus.NewDesc(
+			"sonnenbatterie_ac_frequency",
+			"AC frequency in hertz",
+			[]string{"battery_name", "bms_state", "inverter_state"},
+			nil,
+		),
 		info: prometheus.NewDesc(
 			"sonnenbatterie_info",
 			"SonnenBatterie system information",
@@ -110,6 +131,9 @@ func (c *Collector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.charging
 	ch <- c.discharging
 	ch <- c.fullChargeCapacity
+	ch <- c.acVoltage
+	ch <- c.batteryVoltage
+	ch <- c.acFrequency
 	ch <- c.info
 	ch <- c.scrapeSuccess
 }
@@ -152,13 +176,14 @@ func (c *Collector) collectBattery(battery Battery, ch chan<- prometheus.Metric)
 	// Common labels with state information
 	labels := []string{battery.Name, latestData.ICStatus.StateBMS, latestData.ICStatus.StateInverter}
 
-	// Emit metrics from latestdata endpoint (all in watts, convert to milliwatts)
+	// Emit metrics from both endpoints (all in watts, convert to milliwatts)
+	// Use status endpoint for power values as they're more accurate/real-time
 	ch <- prometheus.MustNewConstMetric(c.chargeLevel, prometheus.GaugeValue, float64(latestData.RSOC), labels...)
 	ch <- prometheus.MustNewConstMetric(c.userChargeLevel, prometheus.GaugeValue, float64(latestData.USOC), labels...)
-	ch <- prometheus.MustNewConstMetric(c.consumption, prometheus.GaugeValue, latestData.ConsumptionW*1000, labels...)
-	ch <- prometheus.MustNewConstMetric(c.production, prometheus.GaugeValue, latestData.ProductionW*1000, labels...)
-	ch <- prometheus.MustNewConstMetric(c.gridFeedIn, prometheus.GaugeValue, latestData.GridFeedInW*1000, labels...)
-	ch <- prometheus.MustNewConstMetric(c.batteryPower, prometheus.GaugeValue, latestData.PacTotalW*1000, labels...)
+	ch <- prometheus.MustNewConstMetric(c.consumption, prometheus.GaugeValue, status.ConsumptionW*1000, labels...)
+	ch <- prometheus.MustNewConstMetric(c.production, prometheus.GaugeValue, status.ProductionW*1000, labels...)
+	ch <- prometheus.MustNewConstMetric(c.gridFeedIn, prometheus.GaugeValue, status.GridFeedInW*1000, labels...)
+	ch <- prometheus.MustNewConstMetric(c.batteryPower, prometheus.GaugeValue, status.PacTotalW*1000, labels...)
 	ch <- prometheus.MustNewConstMetric(c.fullChargeCapacity, prometheus.GaugeValue, float64(latestData.FullChargeCapacity), labels...)
 
 	// Charge mode as binary metrics from status endpoint
@@ -172,6 +197,11 @@ func (c *Collector) collectBattery(battery Battery, ch chan<- prometheus.Metric)
 	}
 	ch <- prometheus.MustNewConstMetric(c.charging, prometheus.GaugeValue, charging, labels...)
 	ch <- prometheus.MustNewConstMetric(c.discharging, prometheus.GaugeValue, discharging, labels...)
+
+	// Voltage and frequency metrics from status endpoint
+	ch <- prometheus.MustNewConstMetric(c.acVoltage, prometheus.GaugeValue, status.Uac, labels...)
+	ch <- prometheus.MustNewConstMetric(c.batteryVoltage, prometheus.GaugeValue, status.Ubat, labels...)
+	ch <- prometheus.MustNewConstMetric(c.acFrequency, prometheus.GaugeValue, status.Fac, labels...)
 
 	// System info
 	infoLabels := []string{
