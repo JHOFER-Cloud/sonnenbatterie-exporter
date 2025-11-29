@@ -2,7 +2,7 @@
 
 Prometheus exporter for SonnenBatterie that works with the [sonnenBatterie-api](https://github.com/larmic-iot/sonnenBatterie-api).
 
-[![Release](https://github.com/JHOFER-Cloud/sonnenbatterie-exporter/actions/workflows/release.yml/badge.svg)](https://github.com/JHOFER-Cloud/sonnenbatterie-exporter/actions/workflows/release.yml)
+[![CI/CD](https://github.com/JHOFER-Cloud/sonnenbatterie-exporter/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/JHOFER-Cloud/sonnenbatterie-exporter/actions/workflows/ci-cd.yml)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 ## Architecture
