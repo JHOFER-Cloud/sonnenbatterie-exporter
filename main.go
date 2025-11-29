@@ -162,34 +162,39 @@ func (c *Collector) collectBattery(battery Battery, ch chan<- prometheus.Metric)
 
 	status, err := fetchStatus(battery.APIURL)
 	if err != nil {
-		log.Printf("Error fetching status for %s: %v", battery.Name, err)
-		ch <- prometheus.MustNewConstMetric(c.scrapeSuccess, prometheus.GaugeValue, 0, battery.Name)
-		return
+		log.Printf("Warning: Could not fetch status for %s (will use partial metrics): %v", battery.Name, err)
+		status = nil // Mark as unavailable
 	}
 
-	// All successful
+	// Mark as successful if we got system and consumption data
 	ch <- prometheus.MustNewConstMetric(c.scrapeSuccess, prometheus.GaugeValue, 1, battery.Name)
 
 	// Common labels
 	labels := []string{battery.Name, system.Model, system.MAC}
 
-	// Emit metrics
-	ch <- prometheus.MustNewConstMetric(c.chargeLevel, prometheus.GaugeValue, float64(status.ChargeLevel), labels...)
+	// Always emit consumption metric (from consumption endpoint)
 	ch <- prometheus.MustNewConstMetric(c.consumption, prometheus.GaugeValue, float64(consumption.CurrentMW), labels...)
-	ch <- prometheus.MustNewConstMetric(c.production, prometheus.GaugeValue, float64(status.ProductionMW), labels...)
-	ch <- prometheus.MustNewConstMetric(c.gridFeedIn, prometheus.GaugeValue, float64(status.GridFeedInMW), labels...)
 
-	// Charge mode as binary metrics
-	charging := 0.0
-	if status.ChargeMode == "charging" {
-		charging = 1.0
+	// Emit status-dependent metrics only if available
+	if status != nil {
+		ch <- prometheus.MustNewConstMetric(c.chargeLevel, prometheus.GaugeValue, float64(status.ChargeLevel), labels...)
+		ch <- prometheus.MustNewConstMetric(c.production, prometheus.GaugeValue, float64(status.ProductionMW), labels...)
+		ch <- prometheus.MustNewConstMetric(c.gridFeedIn, prometheus.GaugeValue, float64(status.GridFeedInMW), labels...)
+
+		// Charge mode as binary metrics
+		charging := 0.0
+		if status.ChargeMode == "charging" {
+			charging = 1.0
+		}
+		discharging := 0.0
+		if status.ChargeMode == "discharging" {
+			discharging = 1.0
+		}
+		ch <- prometheus.MustNewConstMetric(c.charging, prometheus.GaugeValue, charging, labels...)
+		ch <- prometheus.MustNewConstMetric(c.discharging, prometheus.GaugeValue, discharging, labels...)
+	} else {
+		log.Printf("Status endpoint unavailable for %s, some metrics will be missing", battery.Name)
 	}
-	discharging := 0.0
-	if status.ChargeMode == "discharging" {
-		discharging = 1.0
-	}
-	ch <- prometheus.MustNewConstMetric(c.charging, prometheus.GaugeValue, charging, labels...)
-	ch <- prometheus.MustNewConstMetric(c.discharging, prometheus.GaugeValue, discharging, labels...)
 
 	// System info
 	infoLabels := []string{
