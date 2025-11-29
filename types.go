@@ -34,6 +34,10 @@ type LatestData struct {
 type Status struct {
 	BatteryCharging    bool    `json:"BatteryCharging"`
 	BatteryDischarging bool    `json:"BatteryDischarging"`
+	ConsumptionW       float64 `json:"Consumption_W"`
+	GridFeedInW        float64 `json:"GridFeedIn_W"`
+	PacTotalW          float64 `json:"Pac_total_W"`
+	ProductionW        float64 `json:"Production_W"`
 	SystemStatus       string  `json:"SystemStatus"`
 	Uac                float64 `json:"Uac"`  // AC Voltage
 	Ubat               float64 `json:"Ubat"` // Battery Voltage

@@ -9,7 +9,7 @@ Prometheus exporter for SonnenBatterie that talks directly to the battery's nati
 
 - **Direct API Integration**: Talks directly to SonnenBatterie's native `/api/v2/latestdata` and `/api/v2/status` endpoints
 - **Multi-Battery Support**: Monitor multiple batteries from a single exporter instance
-- **Rich Metrics**: Exports 11 comprehensive metrics including charge levels, power flow, and system status
+- **Rich Metrics**: Exports 14 comprehensive metrics including charge levels, power flow, voltages, frequency, and system status
 - **Health Labels**: Includes BMS state and inverter state labels for enhanced monitoring
 - **Production Ready**: Comprehensive test coverage, linting, and CI/CD pipeline
 

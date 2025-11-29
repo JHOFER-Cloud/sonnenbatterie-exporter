@@ -56,8 +56,10 @@ func TestCollector_Describe(t *testing.T) {
 		count++
 	}
 
-	// We have 11 metrics
-	expectedCount := 11
+	// We have 14 metrics: chargeLevel, userChargeLevel, consumption, production, gridFeedIn,
+	// batteryPower, fullChargeCapacity, charging, discharging, acVoltage, batteryVoltage,
+	// acFrequency, info, scrapeSuccess
+	expectedCount := 14
 	if count != expectedCount {
 		t.Errorf("Describe() sent %d descriptors, want %d", count, expectedCount)
 	}
@@ -104,6 +106,10 @@ func TestCollector_Collect_Success(t *testing.T) {
 	mockStatus := Status{
 		BatteryCharging:    true,
 		BatteryDischarging: false,
+		ConsumptionW:       750.5,
+		GridFeedInW:        -250.0,
+		PacTotalW:          100.0,
+		ProductionW:        500.0,
 		SystemStatus:       "OnGrid",
 		Uac:                230.0,
 		Ubat:               50.0,
@@ -149,8 +155,9 @@ func TestCollector_Collect_Success(t *testing.T) {
 	}
 
 	// We expect: scrapeSuccess + chargeLevel + userChargeLevel + consumption + production +
-	// gridFeedIn + batteryPower + fullChargeCapacity + charging + discharging + info = 11 metrics
-	expectedCount := 11
+	// gridFeedIn + batteryPower + fullChargeCapacity + charging + discharging + acVoltage +
+	// batteryVoltage + acFrequency + info = 14 metrics
+	expectedCount := 14
 	if count != expectedCount {
 		t.Errorf("Collect() sent %d metrics, want %d", count, expectedCount)
 	}
@@ -267,6 +274,10 @@ func TestCollector_Collect_MultipleBatteries(t *testing.T) {
 	mockStatus := Status{
 		BatteryCharging:    false,
 		BatteryDischarging: true,
+		ConsumptionW:       750.5,
+		GridFeedInW:        -250.0,
+		PacTotalW:          100.0,
+		ProductionW:        500.0,
 		SystemStatus:       "OnGrid",
 		Uac:                230.0,
 		Ubat:               50.0,
@@ -302,8 +313,8 @@ func TestCollector_Collect_MultipleBatteries(t *testing.T) {
 		count++
 	}
 
-	// 11 metrics per battery * 2 batteries = 22 metrics
-	expectedCount := 22
+	// 14 metrics per battery * 2 batteries = 28 metrics
+	expectedCount := 28
 	if count != expectedCount {
 		t.Errorf("Collect() with 2 batteries sent %d metrics, want %d", count, expectedCount)
 	}
