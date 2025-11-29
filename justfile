@@ -35,7 +35,8 @@ test-coverage:
 # Format code
 fmt:
     @echo "Formatting code..."
-    go fmt ./...
+    gofumpt -w .
+    goimports-reviser .
     @echo "✓ Code formatted"
 
 # Run linter
