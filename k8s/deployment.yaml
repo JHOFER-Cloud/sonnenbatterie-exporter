@@ -1,0 +1,183 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+
+---
+# SonnenBatterie API - connects to the actual hardware
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sonnenbatterie-api
+  namespace: monitoring
+  labels:
+    app: sonnenbatterie-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sonnenbatterie-api
+  template:
+    metadata:
+      labels:
+        app: sonnenbatterie-api
+    spec:
+      containers:
+        - name: api
+          image: larmic/sonnen-batterie-api:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: SONNENBATTERIE_IP
+              value: "192.168.1.100" # Replace with your battery IP
+            - name: SONNENBATTERIE_USER_NAME
+              value: "User"
+            - name: SONNENBATTERIE_USER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: sonnenbatterie-credentials
+                  key: password
+          livenessProbe:
+            httpGet:
+              path: /api/system
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /api/system
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sonnenbatterie-api
+  namespace: monitoring
+  labels:
+    app: sonnenbatterie-api
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      protocol: TCP
+  selector:
+    app: sonnenbatterie-api
+
+---
+# Secret for SonnenBatterie credentials
+apiVersion: v1
+kind: Secret
+metadata:
+  name: sonnenbatterie-credentials
+  namespace: monitoring
+type: Opaque
+stringData:
+  password: "your-password-here" # Replace with your actual password
+
+---
+# Prometheus Exporter - fetches from the API and exposes metrics
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sonnenbatterie-exporter
+  namespace: monitoring
+  labels:
+    app: sonnenbatterie-exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sonnenbatterie-exporter
+  template:
+    metadata:
+      labels:
+        app: sonnenbatterie-exporter
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: exporter
+          image: ghcr.io/jhofer-cloud/sonnenbatterie-exporter:latest
+          imagePullPolicy: Always
+          ports:
+            - name: metrics
+              containerPort: 9090
+              protocol: TCP
+          env:
+            - name: SONNENBATTERIE_API_URL
+              value: "http://sonnenbatterie-api:8080"
+            - name: EXPORTER_PORT
+              value: "9090"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: metrics
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: metrics
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sonnenbatterie-exporter
+  namespace: monitoring
+  labels:
+    app: sonnenbatterie-exporter
+spec:
+  type: ClusterIP
+  ports:
+    - name: metrics
+      port: 9090
+      targetPort: metrics
+      protocol: TCP
+  selector:
+    app: sonnenbatterie-exporter
+
+---
+# Optional: ServiceMonitor for Prometheus Operator
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: sonnenbatterie-exporter
+  namespace: monitoring
+  labels:
+    app: sonnenbatterie-exporter
+spec:
+  selector:
+    matchLabels:
+      app: sonnenbatterie-exporter
+  endpoints:
+    - port: metrics
+      interval: 30s
+      path: /metrics

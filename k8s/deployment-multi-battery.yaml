@@ -1,0 +1,258 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+
+---
+# SonnenBatterie API #1 - House
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sonnenbatterie-api-house
+  namespace: monitoring
+  labels:
+    app: sonnenbatterie-api
+    battery: house
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sonnenbatterie-api
+      battery: house
+  template:
+    metadata:
+      labels:
+        app: sonnenbatterie-api
+        battery: house
+    spec:
+      containers:
+        - name: api
+          image: larmic/sonnen-batterie-api:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: SONNENBATTERIE_IP
+              value: "192.168.1.100" # House battery IP
+            - name: SONNENBATTERIE_USER_NAME
+              value: "User"
+            - name: SONNENBATTERIE_USER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: sonnenbatterie-credentials-house
+                  key: password
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sonnenbatterie-api-house
+  namespace: monitoring
+  labels:
+    app: sonnenbatterie-api
+    battery: house
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      protocol: TCP
+  selector:
+    app: sonnenbatterie-api
+    battery: house
+
+---
+# SonnenBatterie API #2 - Garage
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sonnenbatterie-api-garage
+  namespace: monitoring
+  labels:
+    app: sonnenbatterie-api
+    battery: garage
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sonnenbatterie-api
+      battery: garage
+  template:
+    metadata:
+      labels:
+        app: sonnenbatterie-api
+        battery: garage
+    spec:
+      containers:
+        - name: api
+          image: larmic/sonnen-batterie-api:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: SONNENBATTERIE_IP
+              value: "192.168.1.101" # Garage battery IP
+            - name: SONNENBATTERIE_USER_NAME
+              value: "User"
+            - name: SONNENBATTERIE_USER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: sonnenbatterie-credentials-garage
+                  key: password
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sonnenbatterie-api-garage
+  namespace: monitoring
+  labels:
+    app: sonnenbatterie-api
+    battery: garage
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      protocol: TCP
+  selector:
+    app: sonnenbatterie-api
+    battery: garage
+
+---
+# Secrets for SonnenBatterie credentials
+apiVersion: v1
+kind: Secret
+metadata:
+  name: sonnenbatterie-credentials-house
+  namespace: monitoring
+type: Opaque
+stringData:
+  password: "house-password-here" # Replace with actual password
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: sonnenbatterie-credentials-garage
+  namespace: monitoring
+type: Opaque
+stringData:
+  password: "garage-password-here" # Replace with actual password
+
+---
+# Prometheus Exporter - monitors both batteries
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sonnenbatterie-exporter
+  namespace: monitoring
+  labels:
+    app: sonnenbatterie-exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sonnenbatterie-exporter
+  template:
+    metadata:
+      labels:
+        app: sonnenbatterie-exporter
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: exporter
+          image: ghcr.io/jhofer-cloud/sonnenbatterie-exporter:latest
+          imagePullPolicy: Always
+          ports:
+            - name: metrics
+              containerPort: 9090
+              protocol: TCP
+          env:
+            # Multiple battery API URLs
+            - name: SONNENBATTERIE_API_URLS
+              value: "http://sonnenbatterie-api-house:8080,http://sonnenbatterie-api-garage:8080"
+            # Optional: Custom names for batteries
+            - name: SONNENBATTERIE_NAMES
+              value: "house,garage"
+            - name: EXPORTER_PORT
+              value: "9090"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: metrics
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: metrics
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sonnenbatterie-exporter
+  namespace: monitoring
+  labels:
+    app: sonnenbatterie-exporter
+spec:
+  type: ClusterIP
+  ports:
+    - name: metrics
+      port: 9090
+      targetPort: metrics
+      protocol: TCP
+  selector:
+    app: sonnenbatterie-exporter
+
+---
+# Optional: ServiceMonitor for Prometheus Operator
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: sonnenbatterie-exporter
+  namespace: monitoring
+  labels:
+    app: sonnenbatterie-exporter
+spec:
+  selector:
+    matchLabels:
+      app: sonnenbatterie-exporter
+  endpoints:
+    - port: metrics
+      interval: 30s
+      path: /metrics
