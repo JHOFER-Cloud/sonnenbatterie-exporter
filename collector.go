@@ -21,6 +21,7 @@ type Collector struct {
 	batteryPower       *prometheus.Desc
 	charging           *prometheus.Desc
 	discharging        *prometheus.Desc
+	powerFlowState     *prometheus.Desc
 	fullChargeCapacity *prometheus.Desc
 	acVoltage          *prometheus.Desc
 	batteryVoltage     *prometheus.Desc
@@ -81,6 +82,12 @@ func NewCollector(batteries []Battery) *Collector {
 			[]string{"battery_name", "bms_state", "inverter_state"},
 			nil,
 		),
+		powerFlowState: prometheus.NewDesc(
+			"sonnenbatterie_power_flow_state",
+			"Grid power flow state: 0=idle (no grid exchange), 1=importing from grid, 2=exporting to grid",
+			[]string{"battery_name", "bms_state", "inverter_state"},
+			nil,
+		),
 		fullChargeCapacity: prometheus.NewDesc(
 			"sonnenbatterie_full_charge_capacity_wh",
 			"Battery full charge capacity in watt-hours",
@@ -130,6 +137,7 @@ func (c *Collector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.batteryPower
 	ch <- c.charging
 	ch <- c.discharging
+	ch <- c.powerFlowState
 	ch <- c.fullChargeCapacity
 	ch <- c.acVoltage
 	ch <- c.batteryVoltage
@@ -197,6 +205,15 @@ func (c *Collector) collectBattery(battery Battery, ch chan<- prometheus.Metric)
 	}
 	ch <- prometheus.MustNewConstMetric(c.charging, prometheus.GaugeValue, charging, labels...)
 	ch <- prometheus.MustNewConstMetric(c.discharging, prometheus.GaugeValue, discharging, labels...)
+
+	powerFlowState := 0.0
+	switch {
+	case status.GridFeedInW > 0:
+		powerFlowState = 2.0
+	case status.GridFeedInW < 0:
+		powerFlowState = 1.0
+	}
+	ch <- prometheus.MustNewConstMetric(c.powerFlowState, prometheus.GaugeValue, powerFlowState, labels...)
 
 	// Voltage and frequency metrics from status endpoint
 	ch <- prometheus.MustNewConstMetric(c.acVoltage, prometheus.GaugeValue, status.Uac, labels...)

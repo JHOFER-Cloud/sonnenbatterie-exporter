@@ -56,10 +56,10 @@ func TestCollector_Describe(t *testing.T) {
 		count++
 	}
 
-	// We have 14 metrics: chargeLevel, userChargeLevel, consumption, production, gridFeedIn,
-	// batteryPower, fullChargeCapacity, charging, discharging, acVoltage, batteryVoltage,
-	// acFrequency, info, scrapeSuccess
-	expectedCount := 14
+	// We have 15 metrics: chargeLevel, userChargeLevel, consumption, production, gridFeedIn,
+	// batteryPower, fullChargeCapacity, charging, discharging, powerFlowState, acVoltage,
+	// batteryVoltage, acFrequency, info, scrapeSuccess
+	expectedCount := 15
 	if count != expectedCount {
 		t.Errorf("Describe() sent %d descriptors, want %d", count, expectedCount)
 	}
@@ -155,9 +155,9 @@ func TestCollector_Collect_Success(t *testing.T) {
 	}
 
 	// We expect: scrapeSuccess + chargeLevel + userChargeLevel + consumption + production +
-	// gridFeedIn + batteryPower + fullChargeCapacity + charging + discharging + acVoltage +
-	// batteryVoltage + acFrequency + info = 14 metrics
-	expectedCount := 14
+	// gridFeedIn + batteryPower + fullChargeCapacity + charging + discharging + powerFlowState +
+	// acVoltage + batteryVoltage + acFrequency + info = 15 metrics
+	expectedCount := 15
 	if count != expectedCount {
 		t.Errorf("Collect() sent %d metrics, want %d", count, expectedCount)
 	}
@@ -313,8 +313,8 @@ func TestCollector_Collect_MultipleBatteries(t *testing.T) {
 		count++
 	}
 
-	// 14 metrics per battery * 2 batteries = 28 metrics
-	expectedCount := 28
+	// 15 metrics per battery * 2 batteries = 30 metrics
+	expectedCount := 30
 	if count != expectedCount {
 		t.Errorf("Collect() with 2 batteries sent %d metrics, want %d", count, expectedCount)
 	}
