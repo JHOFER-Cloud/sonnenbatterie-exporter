@@ -9,7 +9,7 @@ Prometheus exporter for SonnenBatterie that talks directly to the battery's nati
 
 - **Direct API Integration**: Talks directly to SonnenBatterie's native `/api/v2/latestdata` and `/api/v2/status` endpoints
 - **Multi-Battery Support**: Monitor multiple batteries from a single exporter instance
-- **Rich Metrics**: Exports 14 comprehensive metrics including charge levels, power flow, voltages, frequency, and system status
+- **Rich Metrics**: Exports 15 comprehensive metrics including charge levels, power flow, voltages, frequency, and system status
 - **Health Labels**: Includes BMS state and inverter state labels for enhanced monitoring
 - **Production Ready**: Comprehensive test coverage, linting, and CI/CD pipeline
 
@@ -112,6 +112,7 @@ All metrics include these labels:
 - `sonnenbatterie_ac_voltage` - AC voltage (volts)
 - `sonnenbatterie_battery_voltage` - Battery voltage (volts)
 - `sonnenbatterie_ac_frequency` - AC frequency (hertz)
+- `sonnenbatterie_power_flow_state` - Grid power flow state (0=idle/no grid exchange, 1=importing from grid, 2=exporting to grid)
 
 ### Info Metrics
 
@@ -124,6 +125,11 @@ All metrics include these labels:
   - `charging` - Whether battery is charging (true/false)
   - `discharging` - Whether battery is discharging (true/false)
   - `battery_modules` - Number of battery modules
+
+## Grafana Dashboard
+
+An example Grafana dashboard is available in the [fleet-dashboards](https://github.com/JHOFER-Cloud/fleet-dashboards) repository:
+[sonnenbatterie.json](https://github.com/JHOFER-Cloud/fleet-dashboards/blob/main/sync/K8s/Misc/sonnenbatterie.json)
 
 ## API Endpoints
 
